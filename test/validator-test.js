@@ -29,6 +29,15 @@ function assertHasError(attr, field) {
   };
 }
 
+function assertHasErrorMessage(message, field) {
+  return function (res) {
+    assert.notEqual(res.errors.length, 0);
+    assert.ok(res.errors.some(function (e) {
+      return e.message === message && (field ? e.property === field : true);
+    }));
+  };
+}
+
 function assertValidates(passingValue, failingValue, attributes) {
   var schema = {
     name: 'Resource',
@@ -184,7 +193,15 @@ vows.describe('revalidator', {
             pattern: /[a-z ]+/
           }
         },
-        author:    { type: 'string', pattern: /^[\w ]+$/i, required: true},
+        author:    {
+          type: 'string',
+          pattern: /^[\w ]+$/i,
+          required: true,
+          messages: {
+            'required': 'Author is required',
+            'pattern': 'Invalid author pattern'
+          }
+        },
         published: { type: 'boolean', 'default': false },
         category:  { type: 'string' },
         palindrome: {type: 'string', conform: function(val) {
@@ -227,7 +244,8 @@ vows.describe('revalidator', {
             return revalidator.validate(object, schema);
           },
           "return an object with `valid` set to false":       assertInvalid,
-          "and an error concerning the 'required' attribute": assertHasError('required')
+          "and an error concerning the 'required' attribute": assertHasError('required'),
+          "and the correct error message": assertHasErrorMessage('Author is required')
         },
         "and if it has a missing non-required property": {
           topic: function (object, schema) {
@@ -267,7 +285,8 @@ vows.describe('revalidator', {
             object.tags = ['x'];
             return revalidator.validate(object, schema);
           },
-          "return an object with `valid` set to false":       assertInvalid
+          "return an object with `valid` set to false":       assertInvalid,
+          "and no default error message": assertHasErrorMessage('no default message')
         },
         "and if it has a incorrect format (date)": {
           topic: function (object, schema) {
